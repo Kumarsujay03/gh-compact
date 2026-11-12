@@ -43,8 +43,10 @@ func isTTY() bool { return termIO.IsTerminalOutput() }
 // interactive is true when someone can answer a prompt.
 func interactive() bool { return term.IsTerminal(os.Stdin) && term.IsTerminal(os.Stderr) }
 
-func banner(w io.Writer) {
-	fmt.Fprintln(w, sBrand.Render("◆ gh compact")+sDim.Render("  fold noisy releases into tidy ones"))
+func banner(w io.Writer) { bannerFor(w, "fold noisy releases into tidy ones") }
+
+func bannerFor(w io.Writer, tagline string) {
+	fmt.Fprintln(w, sBrand.Render("◆ gh compact")+sDim.Render("  "+tagline))
 }
 
 // spinner draws on stderr while slow work runs; silent when not a terminal.

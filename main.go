@@ -102,6 +102,7 @@ A backup is written first; ` + "`gh compact restore`" + ` undoes a run.
 USAGE
   gh compact [flags] [owner/repo | repo ...]   scan, show the plan, ask, compact
   gh compact restore [backup.json]             undo a run (default: the latest)
+  gh compact checks [repo ...]                 find failing checks, explain, fix & re-run
   gh compact version
 
 EXAMPLES
@@ -168,6 +169,8 @@ func run(args []string) error {
 			return nil
 		case "restore":
 			return runRestore(args[1:])
+		case "checks", "check":
+			return runChecks(args[1:])
 		}
 	}
 	c, err := parseArgs(args)

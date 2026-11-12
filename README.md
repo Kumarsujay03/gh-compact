@@ -1,6 +1,9 @@
 # gh compact
 
-**Fold too-frequent GitHub releases into tidy ones — across all your repos, in one command.**
+**Fold too-frequent GitHub releases into tidy ones, and turn failing checks green — across all your repos, in one command.**
+
+- `gh compact` folds noisy releases into tidy ones.
+- `gh compact checks` finds failing GitHub checks, tells you why, fixes what it can and re-runs them.
 
 Shipped `v0.1.10` through `v0.1.17` in one afternoon? `gh compact` finds runs of
 releases that came out too close together and folds each run into its newest
@@ -79,6 +82,40 @@ The newest release's own notes stay on top, untouched. Below them:
 
 Compacting again later never nests: earlier folded notes are carried forward as
 their own entries.
+
+## Failing checks: `gh compact checks`
+
+```bash
+gh compact checks            # every repo you own: diagnose, ask, fix, re-run, wait
+gh compact checks -n         # only diagnose
+gh compact checks pairdesk   # one repo
+gh compact checks --pr       # send code fixes as pull requests
+```
+
+It reads the latest run of every workflow on each repo's default branch, pulls
+the failed jobs' logs, and names the cause:
+
+| Cause | What it does |
+| --- | --- |
+| **flaky** — runner shut down, network/DNS timeouts, 5xx, rate limits, cancelled or timed out | re-runs the failed jobs |
+| **vulnerability** — govulncheck found a CVE that has a fixed version | standard library: bumps the `toolchain` line in `go.mod`; modules: `go get module@fixed` + `go mod tidy`. Commits (or opens a PR) and the check runs again |
+| **gh extension** — a `gh-*` repo's latest release has no binaries, so `gh extension install` fails | re-runs that release's workflow |
+| **tests · build · lint · dependencies · workflow config** (missing secret, permissions, bad action version, invalid YAML) | shows the lines that matter and what to do |
+
+```text
+◆ you/pairdesk · govulncheck  failed 1.2h ago  vulnerability
+  ✗ 1 known vulnerability (GO-2026-6859)
+    GO-2026-6859 in net/http@go1.27.3 → fixed in go1.27.4
+  → will bump go.mod toolchain go1.27.3 → go1.27.4, commit to main, re-run
+```
+
+After you say yes it waits (up to `--timeout 20m`) and reports **✓ passed** or
+**✗ failure** for each check. If a workflow doesn't run on push, it starts it by
+hand when the workflow allows `workflow_dispatch`. Commits use your
+`git config user.name/user.email`. `--rerun-unknown` also re-runs failures it
+can't explain; `--since 90d` ignores older ones; `--no-wait` skips waiting.
+Module fixes need `git` and `go` installed locally; everything else works through
+the API.
 
 ## Safety
 
