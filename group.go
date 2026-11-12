@@ -93,22 +93,30 @@ func Plan(rels []Release, o PlanOptions) ([]Group, error) {
 	}
 
 	var groups []Group
-	cur := []Release{el[0]}
+	cur, size := []Release{el[0]}, weight(el[0])
 	flush := func() {
 		if len(cur) >= 2 {
 			groups = append(groups, Group{Survivor: cur[0], Members: append([]Release(nil), cur[1:]...)})
 		}
 	}
 	for _, r := range el[1:] {
-		if (o.MaxGroup <= 0 || len(cur) < o.MaxGroup) && same(cur, r) {
-			cur = append(cur, r)
+		if (o.MaxGroup <= 0 || size+weight(r) <= o.MaxGroup) && same(cur, r) {
+			cur, size = append(cur, r), size+weight(r)
 			continue
 		}
 		flush()
-		cur = []Release{r}
+		cur, size = []Release{r}, weight(r)
 	}
 	flush()
 	return groups, nil
+}
+
+// weight is how many releases one release already stands for: itself plus
+// any gh-compact folded into it before. --max-group caps the total, so
+// running gh compact again never folds full releases into each other.
+func weight(r Release) int {
+	_, folded := splitBody(r.Body)
+	return 1 + len(folded)
 }
 
 var semverRe = regexp.MustCompile(`(\d+)\.(\d+)(?:\.(\d+))?`)

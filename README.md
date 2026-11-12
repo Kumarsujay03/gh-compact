@@ -58,7 +58,7 @@ gh compact restore            # undo the last run
 | --- | --- | --- |
 | `--by` | `burst` | `burst`: a release within `--gap` of the previous one joins its run. `minor`: every `vX.Y.*` folds into the newest `vX.Y.*`. `count`: fixed chunks of `--max-group`. |
 | `--gap` | `1d` | Burst window. Takes `90m`, `12h`, `3d`, `2w`. |
-| `-m, --max-group` | `4` | Most releases folded into one (`0` = no limit). |
+| `-m, --max-group` | `4` | Most releases folded into one, counting ones folded in earlier runs (`0` = no limit). |
 | `--min-releases` | `3` | Repos with fewer releases are left alone. |
 | `-k, --keep` | `0` | Never touch the newest N releases. |
 | `--min-age` | `1h` | Skip releases younger than this, so CI can finish uploading. |

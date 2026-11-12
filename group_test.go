@@ -143,3 +143,25 @@ func TestDurationFlag(t *testing.T) {
 		t.Error("expected an error")
 	}
 }
+
+func TestRerunAfterCompactIsStable(t *testing.T) {
+	var rels []Release
+	for i := 0; i < 8; i++ {
+		rels = append(rels, rel(int64(i), fmt.Sprintf("v0.1.%d", 10+i), t0.Add(time.Duration(i)*10*time.Minute)))
+	}
+	groups, _ := Plan(rels, opts())
+	var left []Release
+	for _, g := range groups {
+		s := g.Survivor
+		s.Body = MergeNotes(g)
+		left = append(left, s)
+	}
+	if again, _ := Plan(left, PlanOptions{Strategy: ByBurst, Gap: 24 * time.Hour, MaxGroup: 4, Now: opts().Now}); len(again) != 0 {
+		t.Fatalf("second run folded full releases: %v", again)
+	}
+	// with no cap they may still merge into one
+	again, _ := Plan(left, PlanOptions{Strategy: ByBurst, Gap: 24 * time.Hour, MaxGroup: 0, Now: opts().Now})
+	if len(again) != 1 || len(FoldedEntries(again[0])) != 7 {
+		t.Fatalf("uncapped re-run should fold all 7 older notes: %v", again)
+	}
+}
