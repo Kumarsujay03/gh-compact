@@ -51,6 +51,8 @@ func shortDuration(d time.Duration) string {
 		return fmt.Sprintf("%dd", d/(24*time.Hour))
 	case d > 0 && d%time.Hour == 0:
 		return fmt.Sprintf("%dh", d/time.Hour)
+	case d > 0 && d%time.Minute == 0:
+		return fmt.Sprintf("%dm", d/time.Minute)
 	}
 	return d.String()
 }
@@ -91,6 +93,30 @@ type cli struct {
 	repos      []string
 }
 
+const overview = `gh compact — tidy GitHub releases and fix failing checks, across all your repos.
+
+COMMANDS
+  gh compact [repo ...]            Fold too-frequent releases into tidy ones.
+                                   Shows the plan, asks, then compacts.
+  gh compact checks [repo ...]     Find failing GitHub checks, explain why,
+                                   fix what it can, re-run, wait for the result.
+  gh compact restore [backup]      Undo the last compaction (or a given backup).
+  gh compact help [command]        This help, or one command's help + flags.
+  gh compact version               Print the version.
+
+MOST USEFUL
+  gh compact -n                    see which releases would be folded (no changes)
+  gh compact                       compact every repo you own (asks first)
+  gh compact pairdesk -p           one repo, preview the new release notes
+  gh compact checks -n             see failing checks and why (no changes)
+  gh compact checks                fix + re-run failing checks (asks first)
+  gh compact checks pairdesk -y    fix one repo without asking
+  gh compact restore               undo the last compaction
+
+  Repos: "name" means one of yours, or give "owner/name".
+  More: gh compact help compact · gh compact help checks
+`
+
 const usage = `gh compact — fold too-frequent GitHub releases into tidy ones.
 
 Scans your repositories (private ones too), finds releases that came out
@@ -100,17 +126,17 @@ then the older releases are deleted. Tags stay unless --delete-tags.
 A backup is written first; ` + "`gh compact restore`" + ` undoes a run.
 
 USAGE
-  gh compact [flags] [owner/repo | repo ...]   scan, show the plan, ask, compact
-  gh compact restore [backup.json]             undo a run (default: the latest)
-  gh compact checks [repo ...]                 find failing checks, explain, fix & re-run
-  gh compact version
+  gh compact [flags] [owner/repo | repo ...]
 
 EXAMPLES
-  gh compact                      every repo you own
-  gh compact --dry-run            just show what would happen
-  gh compact pairdesk --preview   show the merged notes for one repo
+  gh compact                      every repo you own: plan, ask, compact
+  gh compact -n                   only show the plan
+  gh compact pairdesk -p          one repo, preview the merged notes
+  gh compact you/a you/b          just these repos
   gh compact --by minor           fold all v1.4.x into the newest v1.4.x
-  gh compact --gap 3d --max-group 0 --yes --org my-team
+  gh compact --gap 3d -m 0        everything within 3 days, no size limit
+  gh compact -k 1                 never touch the newest release
+  gh compact --org my-team -y     include an organisation, no questions
 
 FLAGS
 `
@@ -161,6 +187,18 @@ func main() {
 func run(args []string) error {
 	if len(args) > 0 {
 		switch args[0] {
+		case "help", "-h", "--help":
+			switch {
+			case len(args) > 1 && (args[1] == "checks" || args[1] == "check"):
+				return runChecks([]string{"--help"})
+			case len(args) > 1 && args[1] == "restore":
+				return runRestore([]string{"--help"})
+			case len(args) > 1 && args[1] == "compact":
+				_, err := parseArgs([]string{"--help"})
+				return err
+			}
+			fmt.Fprint(os.Stderr, overview)
+			return nil
 		case "version", "--version", "-v":
 			if bi, ok := debug.ReadBuildInfo(); ok && version == "dev" && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 				version = bi.Main.Version
